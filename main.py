@@ -1,6 +1,7 @@
 '''Scraping for fetching data from CAGR'''
 import time
 import pathlib
+import re
 # import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -17,7 +18,7 @@ class CrawelerCAGR():
     def __init__(self):
         '''Basic options for driver'''
         options = webdriver.FirefoxOptions()
-        # options.add_argument('headless')
+        #options.add_argument('--headless')
         # options.add_argument('window-size=1920x1080')
         self.driver = webdriver.Firefox(firefox_options=options)
 
@@ -30,11 +31,6 @@ class CrawelerCAGR():
     def check_page(self):
         '''Check if page initialize with table visible and try to select campus'''
         table = self.driver.find_element_by_id(TABLE_ID)
-        # print(table)
-        # try:
-        #     self.select_campus()
-        # except:
-        #     print("Can't select campus")
         self.select_campus()
 
     def select_campus(self):
@@ -45,7 +41,9 @@ class CrawelerCAGR():
             selected_campus = campi
             selected_id = idx
 
-            # Find total values in page to be searched
+            # Find total values in page to be searched formBusca:selectSemestre
+            select_year = Select(self.driver.find_element_by_id('formBusca:selectSemestre'))
+            select_year.select_by_visible_text('20192')
             select = Select(self.driver.find_element_by_id('formBusca:selectCampus'))
             select.select_by_visible_text(selected_campus) # aqui muda a variavel selected_campus para iterar no for
             self.driver.find_element_by_id('formBusca:j_id119').click()
@@ -96,17 +94,34 @@ class CrawelerCAGR():
             del data[pos][3]
             # Delete the rest of unwanted values (old cols 10-12)
             del data[pos][5:8]
+            #CAD5103 02335A 30 30 {2 1010 2 : 1, 5 1010 2 : 1}
+            #DISCIPLINA DISC-TURMA OFERTA DEMANDA {DIA HORA CRED : 1}
+            # DISC-0 TURMA-1 NOME-2 OFERTA-3 DEMANDA-4 HORA-5 PROFESSOR-6
+            
+            temp = re.split('([A-Z]{3}\-[A-Z0-9]{6})', data[pos][5])
+            del temp[-1]
+            print(temp)
+            print(len(temp))
+            for id, item in enumerate(temp):
+                if len(temp) <= 2:
+                    # Only one schedule
+                    hour = re.sub('[ /]', '', temp[0])
+                    center = temp[1]
+                    print('Horario = [{}], Centro = [{}]' .format(hour, center))
+                else:
+                    # There are more than two schedules
+                    size = len(temp)
+
+
+            temp_line = data[pos][0] + ' ' + data[pos][0] + '-' + data[pos][1] + '{ ' + 'a' + ' }'
+            # print(data[pos])
             for item in data[pos]:
-                f.write('{} ' .format(item))
+                if data[pos][5] != '':
+                    f.write('{} ' .format(item))
             f.write('\n')
         f.close()
-        # Until here it can get all the displayed table and generate a list of it
-        
+        # Until here it can get all the displayed table and generate a list of it saving it to file
 
-
-
-        print('sleep')
-        time.sleep(10)
 
     def next_page(self):
         '''Check if there is another page in the current campus to be visited'''
