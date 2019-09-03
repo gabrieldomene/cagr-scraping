@@ -8,6 +8,12 @@ from selenium import webdriver
 # from selenium.webdriver.support.ui import WebDriverWait
 # from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import Select
+from pymongo import MongoClient
+
+client = MongoClient('mongodb://USER:PASS@ds149682.mlab.com:49682/node-lcc-google')
+
+db = client['node-lcc-google']
+
 
 BASE_URL = 'http://cagr.sistemas.ufsc.br/modules/comunidade/cadastroTurmas/index.xhtml'
 TABLE_ID = 'formBusca:dataTable'
@@ -18,7 +24,7 @@ class CrawelerCAGR():
     def __init__(self):
         '''Basic options for driver'''
         options = webdriver.FirefoxOptions()
-        #options.add_argument('--headless')
+        options.add_argument('--headless')
         # options.add_argument('window-size=1920x1080')
         self.driver = webdriver.Firefox(firefox_options=options)
 
@@ -100,20 +106,30 @@ class CrawelerCAGR():
             
             temp = re.split('([A-Z]{3}\-[A-Z0-9]{6})', data[pos][5])
             del temp[-1]
-            print(temp)
-            print(len(temp))
-            for id, item in enumerate(temp):
-                if len(temp) <= 2:
-                    # Only one schedule
-                    hour = re.sub('[ /]', '', temp[0])
-                    center = temp[1]
-                    print('Horario = [{}], Centro = [{}]' .format(hour, center))
-                else:
-                    # There are more than two schedules
-                    size = len(temp)
+            hour = []
+            center = []
+            room = []
+            day = []
+            credit = []
+            tipo = []
 
-
-            temp_line = data[pos][0] + ' ' + data[pos][0] + '-' + data[pos][1] + '{ ' + 'a' + ' }'
+            for index in range(0, len(temp), 2):
+                #Run every two schedules in the list to parse info
+                hour_temp = re.sub('[ /]', '', temp[index])
+                hour_temp = re.split('-|\.', hour_temp)
+                day.append(hour_temp[0])
+                hour.append(hour_temp[1])
+                credit.append(hour_temp[2])
+                center_split = re.split('-', temp[index+1])
+                center.append(center_split[0])
+                room.append(center_split[1])
+                tipo.append('1')
+            
+            # if len(day) > 1:
+            #     print(day, hour, credit, center, room)
+            # elif len(day) > 0:
+            #     temp_line = data[pos][0] + ' ' + data[pos][0] + '-' + data[pos][1] + '-' + data[pos][3] + '-' + data[pos][5] +' {' + day[0] + ' ' + hour[0] + ' ' + credit[0] + ' : 1}'
+            #     print(temp_line)
             # print(data[pos])
             for item in data[pos]:
                 if data[pos][5] != '':
