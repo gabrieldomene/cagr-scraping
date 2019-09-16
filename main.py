@@ -44,8 +44,8 @@ class CrawelerCAGR():
         for idx, campi in enumerate(FILTER_CAMPUS):
             # Reset next page flag
             available_page = True
-            selected_campus = campi
-            selected_id = idx
+            selected_campus = 'UFSC/BLN' # ALTERAR DEVOLTA
+            selected_id = 5 # ALTERAR DEVOLTA
 
             # Find total values in page to be searched formBusca:selectSemestre
             select_year = Select(self.driver.find_element_by_id('formBusca:selectSemestre'))
@@ -61,7 +61,7 @@ class CrawelerCAGR():
             total = value_percen
             while available_page:
                 # Catch the displayed info in tables
-                self.get_tables(selected_campus)
+                self.get_tables(selected_campus, selected_id)
                 print('Searching in [{}] - [{} out of {}] - [{:.4f}% - {}%]' .format(selected_campus, idx+1, len(FILTER_CAMPUS), total, 100))
                 old = total
                 if old + value_percen >= 100:
@@ -71,7 +71,7 @@ class CrawelerCAGR():
                 available_page = self.next_page()
             print('FINISHED [{}] \n' .format(selected_campus))
 
-    def get_tables(self, filename):
+    def get_tables(self, filename, campus_regex):
         '''Parse tables in the html page'''
 
         html = self.driver.page_source
@@ -103,34 +103,83 @@ class CrawelerCAGR():
             #CAD5103 02335A 30 30 {2 1010 2 : 1, 5 1010 2 : 1}
             #DISCIPLINA DISC-TURMA OFERTA DEMANDA {DIA HORA CRED : 1}
             # DISC-0 TURMA-1 NOME-2 OFERTA-3 DEMANDA-4 HORA-5 PROFESSOR-6
-            
-            temp = re.split('([A-Z]{3}\-[A-Z0-9]{6})', data[pos][5])
-            del temp[-1]
             hour = []
             center = []
             room = []
             day = []
             credit = []
             tipo = []
+            if campus_regex == 0 or campus_regex == 1 or campus_regex == 3:
+                # EaD regex
+                temp = re.split('([A-Z]{3}\-[A-Z0-9]{6})', data[pos][5])
+                del temp[-1] # Delete the empty cell
+                print(temp)
+                for index in range(0, len(temp), 2):
+                    #Run every two schedules in the list to parse info
+                    hour_temp = re.sub('[ /]', '', temp[index])
+                    hour_temp = re.split('-|\.', hour_temp)
+                    day.append(hour_temp[0])
+                    hour.append(hour_temp[1])
+                    credit.append(hour_temp[2])
+                    center_split = re.split('-', temp[index+1])
+                    center.append(center_split[0])
+                    room.append(center_split[1])
+                    tipo.append('1')
+            elif campus_regex == 2:
+                # JOI regex  CTJ-U-1044.0820-2 
+                temp = re.split('([A-Z]{3}\-U\-[A-Z0-9]{3}[A-Z]?)', data[pos][5])
+                del temp[-1] # Delete the empty cell
+                print(temp)
+                for index in range(0, len(temp), 2):
+                    #Run every two schedules in the list to parse info
+                    hour_temp = re.sub('[ /]', '', temp[index])
+                    hour_temp = re.split('-|\.', hour_temp)
+                    day.append(hour_temp[0])
+                    hour.append(hour_temp[1])
+                    credit.append(hour_temp[2])
+                    center_split = re.split('-', temp[index+1])
+                    center.append(center_split[0])
+                    room.append(center_split[2])
+                    tipo.append('1')
 
-            for index in range(0, len(temp), 2):
-                #Run every two schedules in the list to parse info
-                hour_temp = re.sub('[ /]', '', temp[index])
-                hour_temp = re.split('-|\.', hour_temp)
-                day.append(hour_temp[0])
-                hour.append(hour_temp[1])
-                credit.append(hour_temp[2])
-                center_split = re.split('-', temp[index+1])
-                center.append(center_split[0])
-                room.append(center_split[1])
-                tipo.append('1')
+            elif campus_regex == 4:
+                # ARA regex [\w\d]{3}\-[\w\d]{5}[A-Z]?
+                temp = re.split('([\w\d]{3}\-[\w\d]{5}[A-Z]?)', data[pos][5])
+                del temp[-1] # Delete the empty cell
+
+                for index in range(0, len(temp), 2):
+                    #Run every two schedules in the list to parse info
+                    hour_temp = re.sub('[ /]', '', temp[index])
+                    hour_temp = re.split('-|\.', hour_temp)
+                    day.append(hour_temp[0])
+                    hour.append(hour_temp[1])
+                    credit.append(hour_temp[2])
+                    center_split = re.split('-', temp[index+1])
+                    center.append(center_split[0])
+                    room.append(center_split[1])
+                    tipo.append('1')
+                pass
+            elif campus_regex == 5:
+                temp = re.split('([\w]{3}\-[\w]{4}[A-Z]{2}?|[\w]{3}\-[\w]{4})', data[pos][5])
+                del temp[-1]
+                print(temp)
+                # BLN regex
+                pass
+            else:
+                # INVALID
+                pass
+
+            # temp = re.split('([A-Z]{3}\-[A-Z0-9]{6})', data[pos][5])
             
-            # if len(day) > 1:
-            #     print(day, hour, credit, center, room)
-            # elif len(day) > 0:
-            #     temp_line = data[pos][0] + ' ' + data[pos][0] + '-' + data[pos][1] + '-' + data[pos][3] + '-' + data[pos][5] +' {' + day[0] + ' ' + hour[0] + ' ' + credit[0] + ' : 1}'
-            #     print(temp_line)
-            # print(data[pos])
+            # Só inserir no banco agora
+            print(hour)
+            print(center)
+            print(room)
+            print(day)
+            print(credit)
+            print(tipo)
+            
+            
             for item in data[pos]:
                 if data[pos][5] != '':
                     f.write('{} ' .format(item))
