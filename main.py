@@ -2,6 +2,8 @@
 import time
 import pathlib
 import re
+import pymongo
+from pymongo import MongoClient
 # import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -10,10 +12,9 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from pymongo import MongoClient
 
-client = MongoClient('mongodb://USER:PASS@ds149682.mlab.com:49682/node-lcc-google')
-
+client = MongoClient("mongodb://USER:PASS@ds149682.mlab.com:49682/node-lcc-google?retryWrites=false&w=majority")
 db = client['node-lcc-google']
-
+db_collection = db.testes
 
 BASE_URL = 'http://cagr.sistemas.ufsc.br/modules/comunidade/cadastroTurmas/index.xhtml'
 TABLE_ID = 'formBusca:dataTable'
@@ -75,7 +76,7 @@ class CrawelerCAGR():
         '''Parse tables in the html page'''
 
         html = self.driver.page_source
-        filename = '-'.join(filename.split('/'))+'.txt'
+        
         soup = BeautifulSoup(html, 'lxml')
 
         data = []
@@ -83,12 +84,14 @@ class CrawelerCAGR():
         table_body = table.find('tbody')
         rows = table_body.findAll('tr')
 
+        filename = '-'.join(filename.split('/'))+'not-inserted.txt'
         if pathlib.Path(filename):
             append_write = 'a'
         else:
             append_write = 'w'
-        f = open(filename, append_write)
-
+        
+        count_file = 0
+        count_db = 0
         for pos, row in enumerate(rows):
             # Slice unwanted cols from the table, delete the (1, 2, 3, 7, 10, 11, 12) cols
             cols = row.findAll('td')
@@ -158,35 +161,52 @@ class CrawelerCAGR():
                     center.append(center_split[0])
                     room.append(center_split[1])
                     tipo.append('1')
-                pass
+                
             elif campus_regex == 5:
-                temp = re.split('([\w]{3}\-[\w]{4}[A-Z]{2}?|[\w]{3}\-[\w]{4})', data[pos][5])
+                temp = re.split('(\w+\-\w+(?=\d\.)|[BLNAUX]+\-\w+)', data[pos][5])
                 del temp[-1]
-                print(temp)
-                # BLN regex
-                pass
+                for index in range(0, len(temp), 2):
+                    #Run every two schedules in the list to parse info
+                    hour_temp = re.sub('[ /]', '', temp[index])
+                    hour_temp = re.split('-|\.', hour_temp)
+                    day.append(hour_temp[0])
+                    hour.append(hour_temp[1])
+                    credit.append(hour_temp[2])
+                    center_split = re.split('-', temp[index+1])
+                    center.append(center_split[0])
+                    room.append(center_split[1])
+                    tipo.append('1')
             else:
                 # INVALID
                 pass
-
-            # temp = re.split('([A-Z]{3}\-[A-Z0-9]{6})', data[pos][5])
+  
+            fase = data[pos][0] + '-' + data[pos][1]
+            data_to_be_insert = {
+                "dia": day,
+                "start": hour,
+                "tipoSalaTurma": tipo,
+                "creditos": credit,
+                "descricao": data[pos][0],
+                "fase": fase,
+                "oferta": data[pos][3],
+                "demanda": data[pos][4],
+                "idcentro": "99"
+            }
+            if not day:
+                #If day is empty, should save to file instead inserting in DB
+                count_file = count_file + 1
+                print('{} saved to file - #{}' .format(data[pos][0], count_file))
+                
+                f = open(filename, append_write)
+                f.write('{}\n'.format(data[pos][0]))
+                f.close()
+            else:
+                #Insert into DB
+                query = {"fase" : fase}
+                count_db = count_db + 1
+                print('#{} into DB' .format(count_db))
+                db_collection.update(query, {"$setOnInsert": data_to_be_insert}, upsert=True)
             
-            # Só inserir no banco agora
-            print(hour)
-            print(center)
-            print(room)
-            print(day)
-            print(credit)
-            print(tipo)
-            
-            
-            for item in data[pos]:
-                if data[pos][5] != '':
-                    f.write('{} ' .format(item))
-            f.write('\n')
-        f.close()
-        # Until here it can get all the displayed table and generate a list of it saving it to file
-
 
     def next_page(self):
         '''Check if there is another page in the current campus to be visited'''
