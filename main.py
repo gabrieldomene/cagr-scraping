@@ -16,7 +16,7 @@ from datetime import datetime
 import pprint
 import time
 
-client = MongoClient("mongodb://gdomenee:manaogod123@ds149682.mlab.com:49682/node-lcc-google?retryWrites=false&w=majority")
+client = MongoClient("mongodb://USER:PASS@ds149682.mlab.com:49682/node-lcc-google?retryWrites=false&w=majority")
 db = client['node-lcc-google']
 db_collection = db.testes
 
