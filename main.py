@@ -113,20 +113,6 @@ class CrawelerCAGR():
         table = soup.find('table', attrs={'id':'formBusca:dataTable'})
         table_body = table.find('tbody')
         rows = table_body.findAll('tr')
-        # if pathlib.Path(filehtml):
-        #     append_write = 'a'
-        # else:
-        #     append_write = 'w'
-        # f = open(filehtml, append_write)
-        # f.write('{}\n' .format(table))
-        # f.close()
-
-        # filename = '-'.join(filename.split('/'))+'not-inserted.txt'
-        # if pathlib.Path(filename):
-        #     append_write = 'a'
-        # else:
-        #     append_write = 'w'
-
 
         for pos, row in enumerate(rows):
                                                                                 # Slice unwanted cols from the table, delete the (1, 2, 3, 7, 10, 11, 12) cols
